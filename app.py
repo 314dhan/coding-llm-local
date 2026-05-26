@@ -59,12 +59,16 @@ def chat():
         conversation_histories[session_id] = history[-MAX_HISTORY:]
         history = conversation_histories[session_id]
 
-    response = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=2048,
-        system=SYSTEM_PROMPT,
-        messages=list(history),
-    )
+    try:
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=2048,
+            system=SYSTEM_PROMPT,
+            messages=list(history),
+        )
+    except Exception as e:
+        history.pop()
+        return jsonify({"error": f"API error: {e}"}), 502
 
     reply = response.content[0].text
     history.append({"role": "assistant", "content": reply})

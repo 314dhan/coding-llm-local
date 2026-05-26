@@ -207,10 +207,10 @@
                 });
                 const data = await res.json();
                 hideTyping();
-                if (data.reply) {
-                    addMessage('assistant', data.reply);
+                if (!res.ok) {
+                    addMessage('assistant', `Error: ${data.error || 'Something went wrong. Please try again.'}`);
                 } else {
-                    addMessage('assistant', 'Sorry, something went wrong. Please try again.');
+                    addMessage('assistant', data.reply);
                 }
             } catch {
                 hideTyping();
