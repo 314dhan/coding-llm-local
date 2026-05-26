@@ -35,5 +35,39 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/chat", methods=["POST"])
+def chat():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
+
+    user_message = data.get("message", "").strip()
+    if not user_message:
+        return jsonify({"error": "Message cannot be empty"}), 400
+
+    session_id = session.get("session_id")
+    if session_id not in conversation_histories:
+        conversation_histories[session_id] = []
+
+    history = conversation_histories[session_id]
+    history.append({"role": "user", "content": user_message})
+
+    if len(history) > MAX_HISTORY:
+        conversation_histories[session_id] = history[-MAX_HISTORY:]
+        history = conversation_histories[session_id]
+
+    response = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=2048,
+        system=SYSTEM_PROMPT,
+        messages=list(history),
+    )
+
+    reply = response.content[0].text
+    history.append({"role": "assistant", "content": reply})
+
+    return jsonify({"reply": reply})
+
+
 if __name__ == "__main__":
     app.run(debug=True)
