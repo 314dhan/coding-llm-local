@@ -46,6 +46,9 @@ def chat():
         return jsonify({"error": "Message cannot be empty"}), 400
 
     session_id = session.get("session_id")
+    if not session_id:
+        session_id = str(uuid.uuid4())
+        session["session_id"] = session_id
     if session_id not in conversation_histories:
         conversation_histories[session_id] = []
 
