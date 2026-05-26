@@ -1,7 +1,7 @@
 import os
 import uuid
 from flask import Flask, render_template, request, jsonify, session
-from anthropic import Anthropic
+import ollama
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -11,12 +11,6 @@ app.secret_key = os.environ.get("FLASK_SECRET_KEY")
 if not app.secret_key:
     raise RuntimeError("FLASK_SECRET_KEY is not set. Add it to your .env file.")
 
-_api_key = os.environ.get("ANTHROPIC_API_KEY")
-if not _api_key:
-    raise RuntimeError("ANTHROPIC_API_KEY is not set. Add it to your .env file.")
-
-client = Anthropic(api_key=_api_key)
-
 conversation_histories: dict[str, list] = {}
 
 SYSTEM_PROMPT = (
@@ -25,6 +19,7 @@ SYSTEM_PROMPT = (
     "Use code blocks for all code."
 )
 
+MODEL = "qwen2.5-coder:7b"
 MAX_HISTORY = 20
 
 
@@ -38,7 +33,7 @@ def index():
 @app.route("/chat", methods=["POST"])
 def chat():
     data = request.get_json()
-    if not data:
+    if data is None:
         return jsonify({"error": "Invalid JSON"}), 400
 
     user_message = data.get("message", "").strip()
@@ -59,18 +54,15 @@ def chat():
         conversation_histories[session_id] = history[-MAX_HISTORY:]
         history = conversation_histories[session_id]
 
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}] + list(history)
+
     try:
-        response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=2048,
-            system=SYSTEM_PROMPT,
-            messages=list(history),
-        )
+        response = ollama.chat(model=MODEL, messages=messages)
     except Exception as e:
         history.pop()
-        return jsonify({"error": f"API error: {e}"}), 502
+        return jsonify({"error": f"Model error: {e}"}), 502
 
-    reply = response.content[0].text
+    reply = response.message.content
     history.append({"role": "assistant", "content": reply})
 
     return jsonify({"reply": reply})

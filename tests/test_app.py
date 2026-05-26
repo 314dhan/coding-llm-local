@@ -45,11 +45,10 @@ def test_chat_missing_message_returns_400(client):
 
 
 def test_chat_returns_reply(client):
-    with patch("app.client") as mock_client:
-        mock_response = MagicMock()
-        mock_response.content = [MagicMock(text="Use a for loop.")]
-        mock_client.messages.create.return_value = mock_response
+    mock_response = MagicMock()
+    mock_response.message.content = "Use a for loop."
 
+    with patch("app.ollama.chat", return_value=mock_response):
         with client.session_transaction() as sess:
             sess["session_id"] = "test-session-reply"
 
@@ -64,13 +63,12 @@ def test_chat_returns_reply(client):
 
 
 def test_chat_history_accumulates(client):
-    with patch("app.client") as mock_client:
-        mock_resp1 = MagicMock()
-        mock_resp1.content = [MagicMock(text="Answer 1")]
-        mock_resp2 = MagicMock()
-        mock_resp2.content = [MagicMock(text="Answer 2")]
-        mock_client.messages.create.side_effect = [mock_resp1, mock_resp2]
+    mock_resp1 = MagicMock()
+    mock_resp1.message.content = "Answer 1"
+    mock_resp2 = MagicMock()
+    mock_resp2.message.content = "Answer 2"
 
+    with patch("app.ollama.chat", side_effect=[mock_resp1, mock_resp2]) as mock_chat:
         with client.session_transaction() as sess:
             sess["session_id"] = "test-session-history"
 
@@ -85,9 +83,11 @@ def test_chat_history_accumulates(client):
             content_type="application/json",
         )
 
-        second_call_args = mock_client.messages.create.call_args
+        second_call_args = mock_chat.call_args
         messages = second_call_args.kwargs["messages"]
-        assert len(messages) == 3
-        assert messages[0] == {"role": "user", "content": "First question"}
-        assert messages[1] == {"role": "assistant", "content": "Answer 1"}
-        assert messages[2] == {"role": "user", "content": "Second question"}
+        # messages includes system prompt + history: system, user1, assistant1, user2
+        user_messages = [m for m in messages if m["role"] != "system"]
+        assert len(user_messages) == 3
+        assert user_messages[0] == {"role": "user", "content": "First question"}
+        assert user_messages[1] == {"role": "assistant", "content": "Answer 1"}
+        assert user_messages[2] == {"role": "user", "content": "Second question"}
