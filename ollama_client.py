@@ -1,5 +1,9 @@
 from PyQt6.QtCore import QThread, pyqtSignal
 import ollama
+try:
+    import httpx as _httpx
+except ImportError:
+    _httpx = None
 
 SYSTEM_PROMPT = (
     "You are an expert coding assistant. Help the user with any programming question "
@@ -68,8 +72,13 @@ class OllamaWorker(QThread):
             else:
                 self.error.emit(f"Model error: {e}")
         except Exception as e:
-            msg = str(e).lower()
-            if any(w in msg for w in ("connection", "refused", "connect")):
+            is_conn = isinstance(e, ConnectionError)
+            if _httpx and isinstance(e, _httpx.ConnectError):
+                is_conn = True
+            if not is_conn:
+                msg = str(e).lower()
+                is_conn = any(w in msg for w in ("connection", "refused", "connect"))
+            if is_conn:
                 self.error.emit("Ollama isn't running.\nStart it with: ollama serve")
             else:
                 self.error.emit(f"Unexpected error: {e}")
