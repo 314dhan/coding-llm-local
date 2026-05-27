@@ -1,4 +1,4 @@
-from message_bubble import parse_message_blocks
+from app.ui.message_bubble import parse_message_blocks
 
 
 def test_plain_text_only():

@@ -1,5 +1,6 @@
 from PyQt6.QtCore import QThread, pyqtSignal
 import ollama
+
 try:
     import httpx as _httpx
 except ImportError:

@@ -1,6 +1,7 @@
 from PyQt6.QtWidgets import QScrollArea, QWidget, QVBoxLayout
 from PyQt6.QtCore import Qt, QTimer
-from message_bubble import MessageBubble
+
+from app.ui.message_bubble import MessageBubble
 
 
 class ChatWidget(QScrollArea):

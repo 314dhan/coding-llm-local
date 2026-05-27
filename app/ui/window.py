@@ -2,10 +2,10 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QFrame
 from PyQt6.QtCore import Qt, QPoint, QSize
 from PyQt6.QtGui import QPainter, QColor, QPen, QBrush, QMouseEvent, QPaintEvent
 
-from title_bar import TitleBar
-from chat_widget import ChatWidget
-from input_bar import InputBar
-import ollama_client
+from app.ui.title_bar import TitleBar
+from app.ui.chat_widget import ChatWidget
+from app.ui.input_bar import InputBar
+import app.client as ollama_client
 
 
 class _ResizeGrip(QWidget):

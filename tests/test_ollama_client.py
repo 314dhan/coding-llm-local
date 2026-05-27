@@ -1,5 +1,5 @@
 import pytest
-import ollama_client as oc
+import app.client as oc
 
 
 @pytest.fixture(autouse=True)

@@ -2,9 +2,9 @@ import sys
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import Qt
 
-from window import OverlayWindow
-from tray import TrayIcon
-from hotkey import HotkeyListener
+from app.ui.window import OverlayWindow
+from app.tray import TrayIcon
+from app.hotkey import HotkeyListener
 
 
 def main() -> None:
