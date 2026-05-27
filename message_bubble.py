@@ -12,7 +12,7 @@ def parse_message_blocks(text: str) -> list[dict]:
         return []
 
     blocks: list[dict] = []
-    pattern = re.compile(r"```(\w*)\n(.*?)```", re.DOTALL)
+    pattern = re.compile(r"```([^\n]*)\r?\n(.*?)```", re.DOTALL)
     last_end = 0
 
     for match in pattern.finditer(text):

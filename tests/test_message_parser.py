@@ -41,3 +41,19 @@ def test_ignores_empty_text_segments():
 def test_strips_surrounding_whitespace():
     blocks = parse_message_blocks("  hello  ")
     assert blocks[0]["content"] == "hello"
+
+
+def test_hyphenated_lang_tag():
+    text = "```shell-script\necho hi\n```"
+    blocks = parse_message_blocks(text)
+    assert len(blocks) == 1
+    assert blocks[0]["type"] == "code"
+    assert blocks[0]["lang"] == "shell-script"
+
+
+def test_crlf_line_endings():
+    text = "```python\r\nprint('hi')\r\n```"
+    blocks = parse_message_blocks(text)
+    assert len(blocks) == 1
+    assert blocks[0]["type"] == "code"
+    assert blocks[0]["lang"] == "python"
