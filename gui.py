@@ -1,5 +1,9 @@
+import os
 import sys
 from PyQt6.QtWidgets import QApplication
+
+os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
+os.environ.setdefault("HUGGINGFACE_HUB_VERBOSITY", "error")
 from PyQt6.QtCore import Qt
 
 from app.ui.window import OverlayWindow

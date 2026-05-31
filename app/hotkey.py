@@ -19,6 +19,8 @@ class HotkeyListener:
     def __init__(self, window):
         self._bridge = _Bridge()
         self._bridge.triggered.connect(window.toggle_visibility)
+        # Capture emit in main thread — PyQt6 rejects signal access from other threads
+        self._emit = self._bridge.triggered.emit
 
     def start(self) -> None:
         thread = threading.Thread(target=self._run, daemon=True)
@@ -27,7 +29,7 @@ class HotkeyListener:
     def _run(self) -> None:
         try:
             import keyboard
-            keyboard.add_hotkey(self.HOTKEY, self._bridge.triggered.emit)
+            keyboard.add_hotkey(self.HOTKEY, self._emit)
             keyboard.wait()
         except ImportError:
             print("Warning: `keyboard` library not installed — hotkey disabled.")
