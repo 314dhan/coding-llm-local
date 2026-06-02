@@ -1,5 +1,8 @@
+import ctypes
+import sys
+
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QFrame
-from PyQt6.QtCore import Qt, QPoint, QSize
+from PyQt6.QtCore import Qt, QPoint, QRect
 from PyQt6.QtGui import QPainter, QColor, QPen, QBrush, QMouseEvent, QPaintEvent
 
 from app.ui.title_bar import TitleBar
@@ -7,44 +10,69 @@ from app.ui.chat_widget import ChatWidget
 from app.ui.input_bar import InputBar
 import app.client as ollama_client
 
+_WDA_EXCLUDEFROMCAPTURE = 0x00000011
+_RESIZE_MARGIN = 8
 
-class _ResizeGrip(QWidget):
-    """16×16 bottom-right corner widget — drag to resize the parent window."""
 
-    def __init__(self, parent: QWidget):
+class _EdgeGrip(QWidget):
+    """Invisible resize handle along one or two edges of the parent window."""
+
+    _CURSORS = {
+        'l':  Qt.CursorShape.SizeHorCursor,
+        'r':  Qt.CursorShape.SizeHorCursor,
+        't':  Qt.CursorShape.SizeVerCursor,
+        'b':  Qt.CursorShape.SizeVerCursor,
+        'tl': Qt.CursorShape.SizeFDiagCursor,
+        'br': Qt.CursorShape.SizeFDiagCursor,
+        'tr': Qt.CursorShape.SizeBDiagCursor,
+        'bl': Qt.CursorShape.SizeBDiagCursor,
+    }
+
+    def __init__(self, parent: QWidget, dirs: str):
         super().__init__(parent)
-        self.setFixedSize(16, 16)
-        self.setCursor(Qt.CursorShape.SizeFDiagCursor)
+        self._dirs = dirs
         self._active = False
         self._start_pos = QPoint()
-        self._start_size = QSize()
+        self._start_geom: QRect = QRect()
+        self.setCursor(self._CURSORS.get(dirs, Qt.CursorShape.ArrowCursor))
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
             self._active = True
             self._start_pos = event.globalPosition().toPoint()
-            self._start_size = self.window().size()
+            self._start_geom = self.window().geometry()
         event.accept()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        if self._active:
-            delta = event.globalPosition().toPoint() - self._start_pos
-            win = self.window()
-            win.resize(
-                max(win.minimumWidth(), self._start_size.width() + delta.x()),
-                max(win.minimumHeight(), self._start_size.height() + delta.y()),
-            )
+        if not self._active:
+            return
+        delta = event.globalPosition().toPoint() - self._start_pos
+        win = self.window()
+        g = self._start_geom
+        min_w, min_h = win.minimumWidth(), win.minimumHeight()
+
+        x, y, w, h = g.x(), g.y(), g.width(), g.height()
+
+        if 'l' in self._dirs:
+            new_w = max(min_w, w - delta.x())
+            x = x + w - new_w
+            w = new_w
+        elif 'r' in self._dirs:
+            w = max(min_w, w + delta.x())
+
+        if 't' in self._dirs:
+            new_h = max(min_h, h - delta.y())
+            y = y + h - new_h
+            h = new_h
+        elif 'b' in self._dirs:
+            h = max(min_h, h + delta.y())
+
+        win.setGeometry(x, y, w, h)
         event.accept()
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         self._active = False
         event.accept()
-
-    def paintEvent(self, event) -> None:
-        painter = QPainter(self)
-        painter.setPen(QPen(QColor(138, 43, 226, 110), 1))
-        for offset in (4, 8, 12):
-            painter.drawLine(offset, 15, 15, offset)
 
 
 class OverlayWindow(QWidget):
@@ -63,10 +91,12 @@ class OverlayWindow(QWidget):
 
         self._setup_ui()
         self._setup_connections()
+        self._setup_grips()
 
-        self._grip = _ResizeGrip(self)
-        self._grip.raise_()
-        self._reposition_grip()
+        if sys.platform == "win32":
+            ctypes.windll.user32.SetWindowDisplayAffinity(
+                int(self.winId()), _WDA_EXCLUDEFROMCAPTURE
+            )
 
     def _setup_ui(self) -> None:
         outer = QVBoxLayout(self)
@@ -101,6 +131,24 @@ class OverlayWindow(QWidget):
         self.title_bar.hide_requested.connect(self.hide)
         self.title_bar.quit_requested.connect(self._quit)
         self.input_bar.message_submitted.connect(self._on_message_submitted)
+
+    def _setup_grips(self) -> None:
+        self._grips = {d: _EdgeGrip(self, d) for d in ('l', 'r', 't', 'b', 'tl', 'tr', 'bl', 'br')}
+        self._reposition_grips()
+
+    def _reposition_grips(self) -> None:
+        w, h = self.width(), self.height()
+        m = _RESIZE_MARGIN
+        self._grips['l'].setGeometry(0, m, m, h - 2 * m)
+        self._grips['r'].setGeometry(w - m, m, m, h - 2 * m)
+        self._grips['t'].setGeometry(m, 0, w - 2 * m, m)
+        self._grips['b'].setGeometry(m, h - m, w - 2 * m, m)
+        self._grips['tl'].setGeometry(0, 0, m, m)
+        self._grips['tr'].setGeometry(w - m, 0, m, m)
+        self._grips['bl'].setGeometry(0, h - m, m, m)
+        self._grips['br'].setGeometry(w - m, h - m, m, m)
+        for grip in self._grips.values():
+            grip.raise_()
 
     def _on_clear(self) -> None:
         self.chat_widget.clear()
@@ -152,11 +200,7 @@ class OverlayWindow(QWidget):
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
-        self._reposition_grip()
-
-    def _reposition_grip(self) -> None:
-        self._grip.move(self.width() - 16, self.height() - 16)
-        self._grip.raise_()
+        self._reposition_grips()
 
     def toggle_visibility(self) -> None:
         if self.isVisible():
