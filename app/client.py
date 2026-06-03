@@ -6,15 +6,64 @@ try:
 except ImportError:
     _httpx = None
 
-SYSTEM_PROMPT = (
-    "You are an expert coding assistant. Help the user with any programming question "
-    "— explain code, debug issues, write code snippets. Be concise and clear. "
-    "Use code blocks for all code."
-)
+_SYSTEM_PROMPTS = {
+    "normal": (
+        "You are an expert coding assistant. Help the user with any programming question "
+        "— explain code, debug issues, write code snippets. Be concise and clear. "
+        "Use code blocks for all code."
+    ),
+    "terse": (
+        "Expert coding assistant. No preamble, no filler, no summaries. "
+        "Direct answers only. Code blocks for all code. Skip explanation unless asked."
+    ),
+    "ultra": (
+        "Coding assistant. Ultra-terse mode. Fragments OK. Code only. "
+        "Drop all filler, intros, summaries. Answer in minimum tokens possible."
+    ),
+}
+
+_PERSONALITY_PROMPTS = {
+    "pro": (
+        "Tone: professional and formal. Use precise technical terminology. "
+        "Structure responses clearly with consistent formatting."
+    ),
+    "direct": (
+        "Tone: blunt and direct. Assume the user is competent. "
+        "Give the answer only — no hand-holding, no filler, no encouragement."
+    ),
+    "mentor": (
+        "Tone: mentoring. Explain reasoning and patterns, not just the answer. "
+        "Help the user understand the why, not just the what."
+    ),
+}
+
 MODEL = "qwen2.5-coder:7b"
 MAX_HISTORY = 20
 
+_mode: str = "normal"
+_personality: str = "pro"
+
 _history: list[dict] = []
+
+
+def set_mode(mode: str) -> None:
+    global _mode
+    if mode in _SYSTEM_PROMPTS:
+        _mode = mode
+
+
+def get_mode() -> str:
+    return _mode
+
+
+def set_personality(personality: str) -> None:
+    global _personality
+    if personality in _PERSONALITY_PROMPTS:
+        _personality = personality
+
+
+def get_personality() -> str:
+    return _personality
 
 
 def get_history() -> list[dict]:
@@ -37,7 +86,8 @@ def remove_last_message() -> None:
 
 
 def build_messages() -> list[dict]:
-    return [{"role": "system", "content": SYSTEM_PROMPT}] + list(_history)
+    system = _SYSTEM_PROMPTS[_mode] + "\n\n" + _PERSONALITY_PROMPTS[_personality]
+    return [{"role": "system", "content": system}] + list(_history)
 
 
 class OllamaWorker(QThread):

@@ -130,6 +130,8 @@ class OverlayWindow(QWidget):
         self.title_bar.clear_requested.connect(self._on_clear)
         self.title_bar.hide_requested.connect(self.hide)
         self.title_bar.quit_requested.connect(self._quit)
+        self.title_bar.mode_changed.connect(ollama_client.set_mode)
+        self.title_bar.personality_changed.connect(ollama_client.set_personality)
         self.input_bar.message_submitted.connect(self._on_message_submitted)
 
     def _setup_grips(self) -> None:
